@@ -16,7 +16,7 @@ app = Flask(__name__)
 # Function to get embeddings from the API
 def get_embedding(text):
     headers = {'Content-Type': 'application/json'}
-    data = json.dumps({"model": "llama3.1:8b", "input": text})
+    data = json.dumps({"model": "llama3.1", "input": text})
     response = requests.post('http://localhost:11434/api/embed', headers=headers, data=data)
     
     if response.status_code != 200:
@@ -87,7 +87,7 @@ def find_similar(conn, query_embedding, top_k=5):
 def stream_api_call(messages, max_tokens):
     prompt = json.dumps(messages)
     data = {
-        "model": "llama3.1:8b",
+        "model": "llama3.1",
         "prompt": prompt,
         "max_tokens": max_tokens,
         "temperature": 0.2,
