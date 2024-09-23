@@ -3,9 +3,11 @@
 /embeddings*
 
 # export lkg_name=win-cpu
+# export lkg_dir=$(pwd)
 # mkdir history
 # mkdir 'history/'$lkg_name
 # mkdir 'history/'$lkg_name'/'$(date +%y%m%d%H%M%S)
 # cp embeddings.* ./history/win-cpu/2409
+# tail /c/Users/timeurg/AppData/Local/Ollama/server.log -n 1000 | grep 'msg="generate request"' > $lkg_dir/history/$lkg_name/$(date +%y%m%d%H%M%S)/requests.txt
 
 /history
