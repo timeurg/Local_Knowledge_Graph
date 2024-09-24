@@ -1,3 +1,8 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
 .venv/*
 
 /embeddings*
@@ -6,8 +11,8 @@
 # export lkg_dir=$(pwd)
 # mkdir history
 # mkdir 'history/'$lkg_name
-# mkdir 'history/'$lkg_name'/'$(date +%y%m%d%H%M%S)
+# mkdir 'history/'$lkg_name'/'$(date +%y%m%d%H%M)
 # cp embeddings.* ./history/win-cpu/2409
-# tail /c/Users/timeurg/AppData/Local/Ollama/server.log -n 1000 | grep 'msg="generate request"' > $lkg_dir/history/$lkg_name/$(date +%y%m%d%H%M%S)/requests.txt
+# tail /c/Users/timeurg/AppData/Local/Ollama/server.log -n 1000 | grep 'msg="generate request"' > $lkg_dir/history/$lkg_name/$(date +%y%m%d%H%M)/requests.txt
 
 /history
