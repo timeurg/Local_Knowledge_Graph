@@ -16,3 +16,5 @@ __pycache__/
 # tail /c/Users/timeurg/AppData/Local/Ollama/server.log -n 1000 | grep 'msg="generate request"' > $lkg_dir/history/$lkg_name/$(date +%y%m%d%H%M)/requests.txt
 
 /history
+
+/test.py

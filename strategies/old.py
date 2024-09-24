@@ -3,7 +3,7 @@ from chat.get_short_title import get_short_title
 from db.embeddings import EmbeddingDB
 import time
 import json
-from chat.api import get_embedding, stream_api_call, API
+from chat.api import API
 from db.embeddings import get_db, EmbeddingDB
 from graph.helpers import calculate_strongest_path, serialize_graph_data
 from helpers import calculate_top_similarities, extract_json
@@ -14,11 +14,16 @@ logger = logging.getLogger(__name__)
 def generate_response(prompt, conn: EmbeddingDB):
     
     api = API()
-    messages = [
-        {"role": "system", "content": """You are an expert AI assistant that explains your reasoning step by step. For each step, provide a title that describes what you're doing in that step, along with the content. Decide if you need another step or if you're ready to give the final answer. Respond in JSON format with 'title', 'content', and 'next_action' (either 'continue' or 'final_answer') keys. USE AS MANY REASONING STEPS AS POSSIBLE. AT LEAST 3. BE AWARE OF YOUR LIMITATIONS AS AN LLM AND WHAT YOU CAN AND CANNOT DO. IN YOUR REASONING, INCLUDE EXPLORATION OF ALTERNATIVE ANSWERS. CONSIDER YOU MAY BE WRONG, AND IF YOU ARE WRONG IN YOUR REASONING, WHERE IT WOULD BE. FULLY TEST ALL OTHER POSSIBILITIES. YOU CAN BE WRONG. WHEN YOU SAY YOU ARE RE-EXAMINING, ACTUALLY RE-EXAMINE, AND USE ANOTHER APPROACH TO DO SO. DO NOT JUST SAY YOU ARE RE-EXAMINING. USE AT LEAST 3 METHODS TO DERIVE THE ANSWER. USE BEST PRACTICES."""},
-        {"role": "user", "content": prompt},
-        {"role": "assistant", "content": "Thank you! I will now think step by step following my instructions, starting at the beginning after decomposing the problem."}
-    ]
+    messages = [{
+        "role": "system", 
+        "content": """You are an expert AI assistant that explains your reasoning step by step. For each step, provide a title that describes what you're doing in that step, along with the content. Decide if you need another step or if you're ready to give the final answer. Respond in JSON format with 'title', 'content', and 'next_action' (either 'continue' or 'final_answer') keys. USE AS MANY REASONING STEPS AS POSSIBLE. AT LEAST 3. BE AWARE OF YOUR LIMITATIONS AS AN LLM AND WHAT YOU CAN AND CANNOT DO. IN YOUR REASONING, INCLUDE EXPLORATION OF ALTERNATIVE ANSWERS. CONSIDER YOU MAY BE WRONG, AND IF YOU ARE WRONG IN YOUR REASONING, WHERE IT WOULD BE. FULLY TEST ALL OTHER POSSIBILITIES. YOU CAN BE WRONG. WHEN YOU SAY YOU ARE RE-EXAMINING, ACTUALLY RE-EXAMINE, AND USE ANOTHER APPROACH TO DO SO. DO NOT JUST SAY YOU ARE RE-EXAMINING. USE AT LEAST 3 METHODS TO DERIVE THE ANSWER. USE BEST PRACTICES."""
+    }, {
+        "role": "user", 
+        "content": prompt
+    }, {
+        "role": "assistant", 
+        "content": "Thank you! I will now think step by step following my instructions, starting at the beginning after decomposing the problem."
+    }]
     
     steps = []
     step_count = 1
@@ -152,9 +157,12 @@ def generate_response(prompt, conn: EmbeddingDB):
             })
             
             start_time = time.time()
-            evaluation_data = ""
-            for chunk in stream_api_call(messages, 300):
-                evaluation_data += chunk
+            
+            response = api.chat(messages=messages)
+            evaluation_data = response['message']['content']
+            
+            # for chunk in stream_api_call(messages, 300):
+            #     evaluation_data += chunk
             end_time = time.time()
             thinking_time = end_time - start_time
             total_thinking_time += thinking_time
@@ -183,9 +191,11 @@ def generate_response(prompt, conn: EmbeddingDB):
         messages.append({"role": "user", "content": "Please provide the final answer based on your reasoning above."})
         
         start_time = time.time()
-        final_data = ""
-        for chunk in stream_api_call(messages, 200):
-            final_data += chunk
+        response = api.chat(messages=messages)
+        final_data = response['message']['content']
+        # final_data = ""
+        # for chunk in stream_api_call(messages, 200):
+        #     final_data += chunk
         end_time = time.time()
         thinking_time = end_time - start_time
         total_thinking_time += thinking_time
@@ -194,7 +204,8 @@ def generate_response(prompt, conn: EmbeddingDB):
         final_answer = final_json.get('content', final_data)
 
     # Calculate embedding for the final answer
-    final_embedding = get_embedding(final_answer)
+    # final_embedding = get_embedding(final_answer)
+    final_embedding = api.embed(final_answer)
     conn.insert_embedding(final_answer, final_embedding, False)
     
     # Add final answer node to the graph
