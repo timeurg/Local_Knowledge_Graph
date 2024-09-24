@@ -1,6 +1,46 @@
 import requests
 import json
 import numpy as np
+import ollama
+import logging
+logger = logging.getLogger(__name__)
+
+class API:
+    def __init__(self, model: str = "llama3.1", options: ollama.Options = []):
+        """
+        Initializes the SQLiteDB object by creating a connection to the SQLite database.
+
+        :param db_file: Path to the SQLite database file.
+        """
+        self.model = model
+        self.options = options
+
+    def chat(self, messages):
+        logger.debug(f"chat: {messages[-1]}")
+        response = ollama.chat(model=self.model, messages=messages, options=self.options)
+        logger.debug(f"chat log:\nresponse:\n{response['message']['content']}\nrequest:\n{messages}")
+        return response
+
+    def generate(self, prompt):
+        response = ollama.generate(model=self.model, prompt=prompt, options=self.options)
+        print(response)
+        return response
+    
+    def embed(self, input):
+        response_data = ollama.embed(model=self.model, input=input, options=self.options)
+        if 'embedding' in response_data:
+            return np.array(response_data['embedding'], dtype=np.float32)
+        elif 'embeddings' in response_data:
+            if (response_data['embeddings']):
+                logger.debug(f"embedding tail: {response_data['embeddings'][1::]}") if response_data['embeddings'][1::] else None
+                return np.array(response_data['embeddings'][0], dtype=np.float32)
+            elif str(input) == "":
+                return np.array([], dtype=np.float32)
+            else:
+                raise KeyError(f"No embedding found in API response. Response: {response_data}, Input: {input}")
+        else:
+            raise KeyError(f"No embedding found in API response. Response: {response_data}, Input: {input}")
+
 
 def stream_api_call(messages, max_tokens):
     prompt = json.dumps(messages)

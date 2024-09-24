@@ -3,13 +3,17 @@ from chat.get_short_title import get_short_title
 from db.embeddings import EmbeddingDB
 import time
 import json
-from chat.api import get_embedding, stream_api_call
+from chat.api import get_embedding, stream_api_call, API
 from db.embeddings import get_db, EmbeddingDB
 from graph.helpers import calculate_strongest_path, serialize_graph_data
 from helpers import calculate_top_similarities, extract_json
+import logging
+logger = logging.getLogger(__name__)
 
 
 def generate_response(prompt, conn: EmbeddingDB):
+    
+    api = API()
     messages = [
         {"role": "system", "content": """You are an expert AI assistant that explains your reasoning step by step. For each step, provide a title that describes what you're doing in that step, along with the content. Decide if you need another step or if you're ready to give the final answer. Respond in JSON format with 'title', 'content', and 'next_action' (either 'continue' or 'final_answer') keys. USE AS MANY REASONING STEPS AS POSSIBLE. AT LEAST 3. BE AWARE OF YOUR LIMITATIONS AS AN LLM AND WHAT YOU CAN AND CANNOT DO. IN YOUR REASONING, INCLUDE EXPLORATION OF ALTERNATIVE ANSWERS. CONSIDER YOU MAY BE WRONG, AND IF YOU ARE WRONG IN YOUR REASONING, WHERE IT WOULD BE. FULLY TEST ALL OTHER POSSIBILITIES. YOU CAN BE WRONG. WHEN YOU SAY YOU ARE RE-EXAMINING, ACTUALLY RE-EXAMINE, AND USE ANOTHER APPROACH TO DO SO. DO NOT JUST SAY YOU ARE RE-EXAMINING. USE AT LEAST 3 METHODS TO DERIVE THE ANSWER. USE BEST PRACTICES."""},
         {"role": "user", "content": prompt},
@@ -32,16 +36,24 @@ def generate_response(prompt, conn: EmbeddingDB):
 
     max_steps = 20  # Set a maximum number of steps to prevent infinite loops
     final_answer = None  # Initialize final_answer
+    
 
     while step_count < max_steps:
         start_time = time.time()
         step_data = ""
-        for chunk in stream_api_call(messages, 300):
-            step_data += chunk
+        # logger.debug(messages)
+        response = api.chat(messages=messages)
+        # logger.debug(response)
+        step_data = response['message']['content']
+        # for chunk in stream_api_call(messages, 300):
+        #     step_data += chunk
         end_time = time.time()
         thinking_time = end_time - start_time
+        logger.info(f"thinking_time {thinking_time}")
+        logger.debug(step_data)
         
         step_json = extract_json(step_data)
+        logger.debug(step_json)
         title = step_json.get('title', '')
         content = step_json.get('content', 'No content')
         next_action = step_json.get('next_action', 'continue')
@@ -56,7 +68,9 @@ def generate_response(prompt, conn: EmbeddingDB):
         total_thinking_time += thinking_time
         
         # Calculate embedding for the current step
-        embedding = get_embedding(content)
+        # embedding = get_embedding(content)
+        embedding = api.embed(content)
+        logger.debug(f"embedding {embedding}")
         embeddings.append(embedding)
         conn.insert_embedding(content, embedding, False)
         
@@ -114,6 +128,7 @@ def generate_response(prompt, conn: EmbeddingDB):
             'avg_similarity': avg_similarity
         } if strongest_path is not None else None
 
+        logger.debug(f'yield step #{step_count}: {title}')
         yield f"data: {json.dumps({'type': 'step', 'step': step_count, 'title': title, 'content': content, 'graph': serialized_graph_data, 'path_data': path_data})}\n\n"
         
         steps.append((f"Step {step_count}: {title}", content, thinking_time))
@@ -217,11 +232,11 @@ def generate_response(prompt, conn: EmbeddingDB):
         'path_weights': path_weights,
         'avg_similarity': avg_similarity
     } if strongest_path is not None else None
-
+    logger.debug(f'yield final: {final_answer}')
     yield f"data: {json.dumps({'type': 'final', 'content': final_answer, 'graph': serialized_graph_data, 'path_data': path_data})}\n\n"
     
     steps.append(("Final Answer", final_answer, thinking_time))
-
+    logger.debug(f'done in {total_thinking_time} s')
     yield f"data: {json.dumps({'type': 'done', 'total_time': total_thinking_time})}\n\n"
 
     # Stop processing here
