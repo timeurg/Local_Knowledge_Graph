@@ -36,6 +36,7 @@ The Local Knowledge Graph is a Flask-based web application that leverages a loca
 - Annoy
 - NetworkX
 - A local Llama language model (e.g., llama3.1:8b) running on `http://localhost:11434`
+- [behave](https://behave.readthedocs.io/en/latest/)
 
 ## Installation
 
